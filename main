@@ -1,0 +1,138 @@
+import random
+
+
+ACE = "Ace"
+SUITS = {"Heart", "Diamond", "Spade", "Club"}
+VALUES = {
+    ACE: 11,
+    "King": 10,
+    "Queen": 10,
+    "Jack": 10,
+    "Ten": 10,
+    "Nine": 9,
+    "Eight": 8,
+    "Seven": 7,
+    "Six": 6,
+    "Five": 5,
+    "Four": 4,
+    "Three": 3,
+    "Two": 2,
+}
+
+
+class Card:
+    def __init__(self, suit: str, rank: str):
+        self.suit = suit
+        self.rank = rank
+        self.value = VALUES[rank]
+        self.name = f"{rank} of {suit}s"
+
+
+class Deck:
+    def __init__(self):
+        self.cards = [Card(suit, rank) for suit in SUITS for rank in VALUES]
+        self.discards = []
+
+    def shuffle(self) -> None:
+        self.cards.extend(self.discards)
+        random.shuffle(self.cards)
+
+    def release_card(self) -> Card:
+        card = self.cards.pop()
+        self.discards.append(card)
+        return card
+    
+    def receive_cards(self, cards: list[Card]) -> None:
+        self.discards.extend(cards)
+
+
+
+class Hand:
+    def __init__(self):
+        self.cards = []
+
+    def add_card(self, card: Card) -> None:
+        self.cards.append(card)
+    
+    def calculate_hand_total(self) -> int:
+        total = sum([card.value for card in self.cards])
+        aces = sum([1 for card in self.cards if card.rank == ACE])
+
+        while total > 21 and aces > 0:
+            total -= 10
+            aces -= 1
+
+        return total
+    
+    def return_cards(self) -> list[Card]:
+        discards = [card for card in self.cards]
+        self.cards.clear()
+        return discards
+
+
+class Player:
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.hand = Hand()
+    
+    def hit(self, card: Card) -> None:
+        self.hand.add_card(card)
+    
+    def stand(self)-> None:
+        pass
+
+    def show_hand(self) -> None:
+        print(f"""{self.name}'s Hand: {", ".join(card.name for card in self.hand.cards)}\n""")
+
+    def check_if_bust(self) -> bool:
+        if self.hand.calculate_hand_total() > 21:
+            return True
+        else:
+            return False
+
+
+class Dealer(Player):
+    def __init__ (self):
+        super().__init__("Dealer")
+    
+    def show_first_card(self) -> None:
+        print(f"{self.name}'s Face up Card: {self.hand.cards[0].name}\n")
+    
+    def check_if_must_hit(self) -> bool:
+        if self.hand.calculate_hand_total() > 17:
+            return False
+        else:
+            return True
+
+
+class Game:
+    def __init__(self, player_names: list[str]):
+        self.deck = Deck()
+        self.dealer = Dealer()
+        self.player_list = [Player(player) for player in player_names]
+            
+    def deal_initial_cards(self) -> None:
+        for i in range(0,2):
+            self.dealer.hand.add_card(self.deck.release_card())
+        for player in self.player_list:
+            for i in range(0, 2):
+                player.hand.add_card(self.deck.release_card())
+    
+    def show_initial_cards(self) -> None:
+        self.dealer.show_first_card()
+        for player in self.player_list:
+            player.show_hand()
+
+
+# ========================================
+# TEST
+# ========================================
+
+
+game = Game(["Blanton", "Grady"])
+game.deck.shuffle()
+game.deal_initial_cards()
+game.show_initial_cards()
+
+
+
