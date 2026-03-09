@@ -1,6 +1,11 @@
+'''beginner blackjack game utilizing OOP principles'''
+
 import random
 
 
+BLACKJACK = "Blackjack!!"
+BUST = "Bust!"
+DEALER = "Dealer"
 ACE = "Ace"
 SUITS = {"Heart", "Diamond", "Spade", "Club"}
 VALUES = {
@@ -18,7 +23,41 @@ VALUES = {
     "Three": 3,
     "Two": 2,
 }
+ACTIONS = {
+    "h": "hit",
+    "s": "stand"
+}
+HIT = "h"
+STAND = "s"
 
+
+# ==========================
+# UTILITY
+# ==========================
+
+def get_valid_response(valid_choices: set, prompt: str, case=str.lower) -> str:
+    while True:
+        response = case(input(prompt).strip())
+        if response not in valid_choices:
+            print("Invalid Input.")
+        else:
+            return response
+
+
+def construct_prompt_ending(keys: list[str]) -> str:
+    keys_with_brackets = [f"[{i[0].upper()}]{i[1:]}" if len(i) > 1 else f"[{i.upper()}]" for i in keys]
+    main_text = ", ".join(keys_with_brackets[:-1])
+    if len(keys_with_brackets) == 2:
+        main_text = main_text + " or"
+    elif len(keys_with_brackets) > 2:
+        main_text = main_text + ", or"
+    prompt_end = f"{main_text} {keys_with_brackets[-1]}?: "
+    return prompt_end
+
+
+# ==========================
+# GAME CLASSES
+# ==========================
 
 class Card:
     def __init__(self, suit: str, rank: str):
@@ -82,7 +121,7 @@ class Player:
         pass
 
     def show_hand(self) -> None:
-        print(f"""{self.name}'s Hand: {", ".join(card.name for card in self.hand.cards)}\n""")
+        print(f"\n{self.name}'s Hand: {', '.join(card.name for card in self.hand.cards)}")
 
     def check_if_bust(self) -> bool:
         if self.hand.calculate_hand_total() > 21:
@@ -93,13 +132,13 @@ class Player:
 
 class Dealer(Player):
     def __init__ (self):
-        super().__init__("Dealer")
+        super().__init__(DEALER)
     
     def show_first_card(self) -> None:
-        print(f"{self.name}'s Face up Card: {self.hand.cards[0].name}\n")
+        print(f"\n{self.name}'s Face up Card: {self.hand.cards[0].name}")
     
     def check_if_must_hit(self) -> bool:
-        if self.hand.calculate_hand_total() > 17:
+        if self.hand.calculate_hand_total() >= 17:
             return False
         else:
             return True
@@ -122,17 +161,58 @@ class Game:
         self.dealer.show_first_card()
         for player in self.player_list:
             player.show_hand()
+    
+    def get_player_action(self, player_name: str) -> str:
+            prompt_end = construct_prompt_ending([v for v in ACTIONS.values()])
+            prompt_start = f"\nWhat would you like to do, {player_name}? "
+            prompt = prompt_start + prompt_end
+            action = get_valid_response({k for k in ACTIONS}, prompt)
+            return action
+    
+    def perform_player_turn(self, player: Player) -> None:
+        while True:
+            if player.check_if_bust():
+                print(f"\n{BUST}")
+                break
+            elif player.hand.calculate_hand_total() == 21:
+                print(f"\n{BLACKJACK}")
+                break
+            else:
+                action = self.get_player_action(player.name)
+                if action == HIT:
+                    player.hit(self.deck.release_card())
+                    player.show_hand()
+                else:
+                    player.stand()
+                    break
+    
+    def player_turns(self) -> None:
+        for player in self.player_list:
+            self.perform_player_turn(player)
+
+    def dealer_turn(self) -> None:
+        while True:
+            self.dealer.show_hand()
+            if self.dealer.check_if_bust():
+                print(f"\n{DEALER} {BUST}")
+                break
+            elif self.dealer.hand.calculate_hand_total() == 21:
+                print(f"\n{DEALER} {BLACKJACK}")
+                break
+            elif self.dealer.check_if_must_hit():
+                self.dealer.hit(self.deck.release_card())
+                self.dealer.show_hand()
+            else:
+                break
 
 
-# ========================================
+# ==========================
 # TEST
-# ========================================
-
+# ==========================
 
 game = Game(["Blanton", "Grady"])
 game.deck.shuffle()
 game.deal_initial_cards()
 game.show_initial_cards()
-
-
-
+game.player_turns()
+game.dealer_turn()
