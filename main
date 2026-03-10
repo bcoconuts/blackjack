@@ -1,4 +1,4 @@
-'''beginner blackjack game utilizing OOP principles'''
+"""beginner blackjack game utilizing OOP principles"""
 
 import random
 
@@ -23,12 +23,13 @@ VALUES = {
     "Three": 3,
     "Two": 2,
 }
-ACTIONS = {
-    "h": "hit",
-    "s": "stand"
-}
+ACTIONS = {"h": "hit", "s": "stand"}
 HIT = "h"
 STAND = "s"
+NEW_GAME_CHOICES = {"y": "yes", "n": "no"}
+YES = "y"
+NO = "n"
+MAX_PLAYERS = 4
 
 
 # ==========================
@@ -44,8 +45,23 @@ def get_valid_response(valid_choices: set, prompt: str, case=str.lower) -> str:
             return response
 
 
+def get_unique_alpha_response(invalid_choices: set, prompt: str, case=str.lower) -> str:
+    unique_error_msg = "Already Taken."
+    alpha_error_msg = "Must be alphabetical only. No numbers or special chars."
+    while True:
+        response = case(input(prompt).strip())
+        if not response.isalpha():
+            print(alpha_error_msg)
+        elif response in invalid_choices:
+            print(unique_error_msg)
+        else:
+            return response
+
+
 def construct_prompt_ending(keys: list[str]) -> str:
-    keys_with_brackets = [f"[{i[0].upper()}]{i[1:]}" if len(i) > 1 else f"[{i.upper()}]" for i in keys]
+    keys_with_brackets = [
+        f"[{i[0].upper()}]{i[1:]}" if len(i) > 1 else f"[{i.upper()}]" for i in keys
+    ]
     main_text = ", ".join(keys_with_brackets[:-1])
     if len(keys_with_brackets) == 2:
         main_text = main_text + " or"
@@ -53,6 +69,57 @@ def construct_prompt_ending(keys: list[str]) -> str:
         main_text = main_text + ", or"
     prompt_end = f"{main_text} {keys_with_brackets[-1]}?: "
     return prompt_end
+
+
+def construct_prompt_and_keys(selection: int | dict) -> tuple[str, set[str]]:
+    if isinstance(selection, int):
+        valid_input_list = [str(i) for i in range(1, selection + 1)]
+        prompt_end = construct_prompt_ending(valid_input_list)
+        valid_keys = set(valid_input_list)
+        return prompt_end, valid_keys
+    else:
+        valid_input_list = [v for v in selection.values()]
+        prompt_end = construct_prompt_ending(valid_input_list)
+        valid_keys = set(i[0].lower() for i in valid_input_list)
+        return prompt_end, valid_keys
+
+
+# ==========================
+# GAME SETUP
+# ==========================
+
+
+def play_new_game_choice() -> bool:
+    prompt_start = "\nNew game?"
+    prompt_end, valid_keys = construct_prompt_and_keys(NEW_GAME_CHOICES)
+
+    response = get_valid_response(valid_keys, f"{prompt_start} {prompt_end}")
+
+    if response == YES:
+        return True
+    else:
+        return False
+
+
+def get_players() -> int:
+    prompt_start = f"\nHow many players are playing against me ({DEALER})?"
+    prompt_end, valid_keys = construct_prompt_and_keys(MAX_PLAYERS)
+
+    response = int(get_valid_response(valid_keys, f"{prompt_start} {prompt_end}"))
+    return response
+
+
+def collect_player_names(players: int) -> list[str]:
+    player_sheet = []
+    name_set = set()
+    for p in range(1, players + 1):
+        name = get_unique_alpha_response(
+            name_set, f"\nWhat is Player {p}'s name?: ", str.title
+        )
+        player_sheet.append(name)
+        name_set.add(name)
+
+    return player_sheet
 
 
 # ==========================
@@ -80,10 +147,9 @@ class Deck:
         card = self.cards.pop()
         self.discards.append(card)
         return card
-    
+
     def receive_cards(self, cards: list[Card]) -> None:
         self.discards.extend(cards)
-
 
 
 class Hand:
@@ -92,7 +158,7 @@ class Hand:
 
     def add_card(self, card: Card) -> None:
         self.cards.append(card)
-    
+
     def calculate_hand_total(self) -> int:
         total = sum([card.value for card in self.cards])
         aces = sum([1 for card in self.cards if card.rank == ACE])
@@ -102,7 +168,7 @@ class Hand:
             aces -= 1
 
         return total
-    
+
     def return_cards(self) -> list[Card]:
         discards = [card for card in self.cards]
         self.cards.clear()
@@ -113,15 +179,17 @@ class Player:
     def __init__(self, name: str) -> None:
         self.name = name
         self.hand = Hand()
-    
+
     def hit(self, card: Card) -> None:
         self.hand.add_card(card)
-    
-    def stand(self)-> None:
+
+    def stand(self) -> None:
         pass
 
     def show_hand(self) -> None:
-        print(f"\n{self.name}'s Hand: {', '.join(card.name for card in self.hand.cards)}")
+        print(
+            f"\n{self.name}'s Hand: {', '.join(card.name for card in self.hand.cards)} ({self.hand.calculate_hand_total()})"
+        )
 
     def check_if_bust(self) -> bool:
         if self.hand.calculate_hand_total() > 21:
@@ -129,14 +197,22 @@ class Player:
         else:
             return False
 
+    def check_if_natrual_blackjack(self) -> bool:
+        if self.hand.calculate_hand_total() == 21 and len(self.hand.cards) == 2:
+            return True
+        else:
+            return False
+
 
 class Dealer(Player):
-    def __init__ (self):
+    def __init__(self):
         super().__init__(DEALER)
-    
+
     def show_first_card(self) -> None:
-        print(f"\n{self.name}'s Face up Card: {self.hand.cards[0].name}")
-    
+        print(
+            f"\n{self.name}'s Face up Card: {self.hand.cards[0].name} ({self.hand.cards[0].value})"
+        )
+
     def check_if_must_hit(self) -> bool:
         if self.hand.calculate_hand_total() >= 17:
             return False
@@ -149,26 +225,26 @@ class Game:
         self.deck = Deck()
         self.dealer = Dealer()
         self.player_list = [Player(player) for player in player_names]
-            
+
     def deal_initial_cards(self) -> None:
-        for i in range(0,2):
+        for i in range(0, 2):
             self.dealer.hand.add_card(self.deck.release_card())
         for player in self.player_list:
             for i in range(0, 2):
                 player.hand.add_card(self.deck.release_card())
-    
+
     def show_initial_cards(self) -> None:
         self.dealer.show_first_card()
         for player in self.player_list:
             player.show_hand()
-    
-    def get_player_action(self, player_name: str) -> str:
-            prompt_end = construct_prompt_ending([v for v in ACTIONS.values()])
-            prompt_start = f"\nWhat would you like to do, {player_name}? "
-            prompt = prompt_start + prompt_end
-            action = get_valid_response({k for k in ACTIONS}, prompt)
-            return action
-    
+
+    def get_player_action(self, player: Player) -> str:
+        prompt_end = construct_prompt_ending([v for v in ACTIONS.values()])
+        prompt_start = f"\nWhat would you like to do, {player.name}? "
+        prompt = prompt_start + prompt_end
+        action = get_valid_response({k for k in ACTIONS}, prompt)
+        return action
+
     def perform_player_turn(self, player: Player) -> None:
         while True:
             if player.check_if_bust():
@@ -178,41 +254,93 @@ class Game:
                 print(f"\n{BLACKJACK}")
                 break
             else:
-                action = self.get_player_action(player.name)
+                action = self.get_player_action(player)
                 if action == HIT:
                     player.hit(self.deck.release_card())
                     player.show_hand()
                 else:
                     player.stand()
                     break
-    
+
     def player_turns(self) -> None:
         for player in self.player_list:
             self.perform_player_turn(player)
 
     def dealer_turn(self) -> None:
-        while True:
-            self.dealer.show_hand()
+        self.dealer.show_hand()
+        for player in self.player_list:
+            if player.check_if_natrual_blackjack():
+                continue
+            while True:
+                if self.dealer.check_if_bust():
+                    break
+                elif self.dealer.hand.calculate_hand_total() == 21:
+                    break
+                elif self.dealer.check_if_must_hit():
+                    self.dealer.hit(self.deck.release_card())
+                    self.dealer.show_hand()
+                else:
+                    break
             if self.dealer.check_if_bust():
                 print(f"\n{DEALER} {BUST}")
                 break
             elif self.dealer.hand.calculate_hand_total() == 21:
                 print(f"\n{DEALER} {BLACKJACK}")
-                break
-            elif self.dealer.check_if_must_hit():
-                self.dealer.hit(self.deck.release_card())
-                self.dealer.show_hand()
+
+    def determine_winners(self) -> None:
+        print("\nRound Results:")
+        dealer_bust = self.dealer.check_if_bust()
+        dealer_total = self.dealer.hand.calculate_hand_total()
+        dealer_natrual_blackjack = self.dealer.check_if_natrual_blackjack()
+        for player in self.player_list:
+            player_bust = player.check_if_bust()
+            player_total = player.hand.calculate_hand_total()
+            player_natrual_blackjack = player.check_if_natrual_blackjack()
+            if dealer_natrual_blackjack and player_natrual_blackjack:
+                print(f"    {player.name} v {DEALER} result: Push")
+            elif player_natrual_blackjack and not dealer_natrual_blackjack:
+                print(
+                    f"    {player.name} v {DEALER} result: {player.name} Wins with a Natrual Blackjack!!"
+                )
+            elif dealer_natrual_blackjack and not player_natrual_blackjack:
+                print(
+                    f"    {player.name} v {DEALER} result: {DEALER} wins with a Natrual Blackjack..."
+                )
+            elif player_bust and dealer_bust or player_total == dealer_total:
+                print(f"    {player.name} v {DEALER} result: Push")
+            elif player_total > dealer_total:
+                print(f"    {player.name} v {DEALER} result: {player.name} Wins!!")
             else:
-                break
+                print(f"    {player.name} v {DEALER} result: {DEALER} wins...")
+
+    def discard_hands(self):
+        for player in self.player_list:
+            discards = player.hand.return_cards()
+            self.deck.receive_cards(discards)
+        discards = self.dealer.hand.return_cards()
+        self.deck.receive_cards(discards)
 
 
 # ==========================
-# TEST
+# MAIN
 # ==========================
 
-game = Game(["Blanton", "Grady"])
-game.deck.shuffle()
-game.deal_initial_cards()
-game.show_initial_cards()
-game.player_turns()
-game.dealer_turn()
+def main():
+    players = get_players()
+    player_list = collect_player_names(players)
+    game = Game(player_list)
+    running = True
+    while running:
+        game.deck.shuffle()
+        game.deal_initial_cards()
+        game.show_initial_cards()
+        game.player_turns()
+        game.dealer_turn()
+        game.determine_winners()
+        game.discard_hands()
+        if not play_new_game_choice():
+            running = False
+
+
+if __name__ == "__main__":
+    main()
