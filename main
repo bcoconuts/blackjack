@@ -235,8 +235,16 @@ class Game:
 
     def show_initial_cards(self) -> None:
         self.dealer.show_first_card()
+        displayed_value = self.dealer.hand.cards[0].value
+        if displayed_value == 11:
+            print(f"\nFlipping {DEALER}'s second card...")
+            self.dealer.show_hand()
+        if self.dealer.check_if_natrual_blackjack():
+            print(f"    {DEALER}'s got a {BLACKJACK}")
         for player in self.player_list:
             player.show_hand()
+            if player.check_if_natrual_blackjack():
+                print(f"    {player.name}'s got a {BLACKJACK}")
 
     def get_player_action(self, player: Player) -> str:
         prompt_end = construct_prompt_ending([v for v in ACTIONS.values()])
@@ -246,12 +254,14 @@ class Game:
         return action
 
     def perform_player_turn(self, player: Player) -> None:
+        if self.dealer.check_if_natrual_blackjack() or player.check_if_natrual_blackjack():
+            return None
         while True:
             if player.check_if_bust():
-                print(f"\n{BUST}")
+                print(f"\n{BUST} for {player.name}...")
                 break
             elif player.hand.calculate_hand_total() == 21:
-                print(f"\n{BLACKJACK}")
+                print(f"\n{BLACKJACK} for {player.name}!!!")
                 break
             else:
                 action = self.get_player_action(player)
@@ -267,6 +277,8 @@ class Game:
             self.perform_player_turn(player)
 
     def dealer_turn(self) -> None:
+        if self.dealer.check_if_natrual_blackjack():
+            return None
         self.dealer.show_hand()
         for player in self.player_list:
             if player.check_if_natrual_blackjack():
@@ -281,11 +293,10 @@ class Game:
                     self.dealer.show_hand()
                 else:
                     break
-            if self.dealer.check_if_bust():
-                print(f"\n{DEALER} {BUST}")
-                break
-            elif self.dealer.hand.calculate_hand_total() == 21:
-                print(f"\n{DEALER} {BLACKJACK}")
+        if self.dealer.check_if_bust():
+            print(f"\n{DEALER} {BUST}")
+        elif self.dealer.hand.calculate_hand_total() == 21:
+            print(f"\n{DEALER} {BLACKJACK}")
 
     def determine_winners(self) -> None:
         print("\nRound Results:")
@@ -293,25 +304,26 @@ class Game:
         dealer_total = self.dealer.hand.calculate_hand_total()
         dealer_natrual_blackjack = self.dealer.check_if_natrual_blackjack()
         for player in self.player_list:
+            prompt_start = f"    {player.name} v {DEALER} result:"
             player_bust = player.check_if_bust()
             player_total = player.hand.calculate_hand_total()
             player_natrual_blackjack = player.check_if_natrual_blackjack()
             if dealer_natrual_blackjack and player_natrual_blackjack:
-                print(f"    {player.name} v {DEALER} result: Push")
+                print(f"{prompt_start} Push")
             elif player_natrual_blackjack and not dealer_natrual_blackjack:
-                print(
-                    f"    {player.name} v {DEALER} result: {player.name} Wins with a Natrual Blackjack!!"
-                )
+                print(f"{prompt_start} {player.name} Wins with a Natrual Blackjack!!")
             elif dealer_natrual_blackjack and not player_natrual_blackjack:
-                print(
-                    f"    {player.name} v {DEALER} result: {DEALER} wins with a Natrual Blackjack..."
-                )
+                print(f"{prompt_start} {DEALER} wins with a Natrual Blackjack...")
             elif player_bust and dealer_bust or player_total == dealer_total:
-                print(f"    {player.name} v {DEALER} result: Push")
+                print(f"{prompt_start} Push")
+            elif dealer_bust:
+                print(f"{prompt_start} {player.name} Wins!!")
+            elif player_bust:
+                print(f"{prompt_start} {DEALER} wins...")
             elif player_total > dealer_total:
-                print(f"    {player.name} v {DEALER} result: {player.name} Wins!!")
+                print(f"{prompt_start} {player.name} Wins!!")
             else:
-                print(f"    {player.name} v {DEALER} result: {DEALER} wins...")
+                print(f"{prompt_start} {DEALER} wins...")
 
     def discard_hands(self):
         for player in self.player_list:
