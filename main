@@ -7,7 +7,7 @@ BLACKJACK = "Blackjack!!"
 BUST = "Bust!"
 DEALER = "Dealer"
 ACE = "Ace"
-SUITS = {"Heart", "Diamond", "Spade", "Club"}
+SUITS = ["Heart", "Diamond", "Spade", "Club"]
 VALUES = {
     ACE: 11,
     "King": 10,
@@ -95,10 +95,7 @@ def play_new_game_choice() -> bool:
 
     response = get_valid_response(valid_keys, f"{prompt_start} {prompt_end}")
 
-    if response == YES:
-        return True
-    else:
-        return False
+    return response == YES
 
 
 def get_players() -> int:
@@ -192,16 +189,10 @@ class Player:
         )
 
     def check_if_bust(self) -> bool:
-        if self.hand.calculate_hand_total() > 21:
-            return True
-        else:
-            return False
+        return self.hand.calculate_hand_total() > 21
 
-    def check_if_natrual_blackjack(self) -> bool:
-        if self.hand.calculate_hand_total() == 21 and len(self.hand.cards) == 2:
-            return True
-        else:
-            return False
+    def check_if_natural_blackjack(self) -> bool:
+        return self.hand.calculate_hand_total() == 21 and len(self.hand.cards) == 2
 
 
 class Dealer(Player):
@@ -214,10 +205,7 @@ class Dealer(Player):
         )
 
     def check_if_must_hit(self) -> bool:
-        if self.hand.calculate_hand_total() >= 17:
-            return False
-        else:
-            return True
+        return self.hand.calculate_hand_total() < 17
 
 
 class Game:
@@ -239,11 +227,11 @@ class Game:
         if displayed_value == 11:
             print(f"\nFlipping {DEALER}'s second card...")
             self.dealer.show_hand()
-        if self.dealer.check_if_natrual_blackjack():
+        if self.dealer.check_if_natural_blackjack():
             print(f"    {DEALER}'s got a {BLACKJACK}")
         for player in self.player_list:
             player.show_hand()
-            if player.check_if_natrual_blackjack():
+            if player.check_if_natural_blackjack():
                 print(f"    {player.name}'s got a {BLACKJACK}")
 
     def get_player_action(self, player: Player) -> str:
@@ -254,8 +242,8 @@ class Game:
         return action
 
     def perform_player_turn(self, player: Player) -> None:
-        if self.dealer.check_if_natrual_blackjack() or player.check_if_natrual_blackjack():
-            return None
+        if self.dealer.check_if_natural_blackjack() or player.check_if_natural_blackjack():
+            return
         while True:
             if player.check_if_bust():
                 print(f"\n{BUST} for {player.name}...")
@@ -277,43 +265,40 @@ class Game:
             self.perform_player_turn(player)
 
     def dealer_turn(self) -> None:
-        if self.dealer.check_if_natrual_blackjack():
-            return None
-        self.dealer.show_hand()
-        for player in self.player_list:
-            if player.check_if_natrual_blackjack():
-                continue
-            while True:
-                if self.dealer.check_if_bust():
-                    break
-                elif self.dealer.hand.calculate_hand_total() == 21:
-                    break
-                elif self.dealer.check_if_must_hit():
-                    self.dealer.hit(self.deck.release_card())
-                    self.dealer.show_hand()
-                else:
-                    break
-        if self.dealer.check_if_bust():
-            print(f"\n{DEALER} {BUST}")
-        elif self.dealer.hand.calculate_hand_total() == 21:
-            print(f"\n{DEALER} {BLACKJACK}")
+        all_players_blackjack = all([player.check_if_natural_blackjack() for player in self.player_list])
+        if self.dealer.check_if_natural_blackjack() or all_players_blackjack:
+            return
+        if self.dealer.hand.cards[0].value != 11:
+            self.dealer.show_hand()
+        while True:
+            if self.dealer.check_if_bust():
+                print(f"\n{DEALER} {BUST}")
+                break
+            elif self.dealer.hand.calculate_hand_total() == 21:
+                print(f"\n{DEALER} {BLACKJACK}")
+                break
+            elif self.dealer.check_if_must_hit():
+                self.dealer.hit(self.deck.release_card())
+                self.dealer.show_hand()
+            else:
+                break
 
     def determine_winners(self) -> None:
         print("\nRound Results:")
         dealer_bust = self.dealer.check_if_bust()
         dealer_total = self.dealer.hand.calculate_hand_total()
-        dealer_natrual_blackjack = self.dealer.check_if_natrual_blackjack()
+        dealer_natural_blackjack = self.dealer.check_if_natural_blackjack()
         for player in self.player_list:
             prompt_start = f"    {player.name} v {DEALER} result:"
             player_bust = player.check_if_bust()
             player_total = player.hand.calculate_hand_total()
-            player_natrual_blackjack = player.check_if_natrual_blackjack()
-            if dealer_natrual_blackjack and player_natrual_blackjack:
+            player_natural_blackjack = player.check_if_natural_blackjack()
+            if dealer_natural_blackjack and player_natural_blackjack:
                 print(f"{prompt_start} Push")
-            elif player_natrual_blackjack and not dealer_natrual_blackjack:
-                print(f"{prompt_start} {player.name} Wins with a Natrual Blackjack!!")
-            elif dealer_natrual_blackjack and not player_natrual_blackjack:
-                print(f"{prompt_start} {DEALER} wins with a Natrual Blackjack...")
+            elif player_natural_blackjack and not dealer_natural_blackjack:
+                print(f"{prompt_start} {player.name} Wins with a Natural Blackjack!!")
+            elif dealer_natural_blackjack and not player_natural_blackjack:
+                print(f"{prompt_start} {DEALER} wins with a Natural Blackjack...")
             elif player_bust and dealer_bust or player_total == dealer_total:
                 print(f"{prompt_start} Push")
             elif dealer_bust:
